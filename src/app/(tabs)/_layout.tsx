@@ -1,44 +1,99 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs, usePathname, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  } as any),
+});
 
 export default function TabsLayout() {
   const router = useRouter();
   const pathname = usePathname();
   const [isMenuVisible, setMenuVisible] = useState(false);
 
+  useEffect(() => {
+    async function registerForPushNotificationsAsync() {
+      // Configure high-priority alert channel for Android
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Safety Violations',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF0000',
+        });
+      }
+
+      if (Device.isDevice) {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+
+        // Ask the user for permission if not already granted
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+
+        if (finalStatus !== 'granted') {
+          console.log('Failed to get push token for push notification!');
+          return;
+        }
+
+        // Generate the unique Expo Push Token for this phone
+        const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+        const tokenData = await Notifications.getExpoPushTokenAsync(
+          projectId ? { projectId } : undefined
+        );
+
+        console.log("====================================");
+        console.log("YOUR EXPO PUSH TOKEN:");
+        console.log(tokenData.data);
+        console.log("====================================");
+      } else {
+        console.log('Must use a physical device for Push Notifications');
+      }
+    }
+
+    registerForPushNotificationsAsync();
+  }, []);
+
   return (
     <>
       <Tabs
         screenOptions={{ headerShown: false }}
-        // The custom tab bar that fixed the Android clipping issue
         tabBar={() => (
           <View style={styles.tabBarContainer}>
-            
+
             {/* Left Tab: Home */}
-            <TouchableOpacity 
-              style={styles.tabItem} 
+            <TouchableOpacity
+              style={styles.tabItem}
               onPress={() => router.push('/')}
             >
-              <Ionicons 
-                name="home-outline" 
-                size={28} 
-                color={pathname === '/' ? '#000000' : '#888888'} 
+              <Ionicons
+                name="home-outline"
+                size={28}
+                color={pathname === '/' ? '#000000' : '#888888'}
               />
               <Text style={[styles.tabLabel, { color: pathname === '/' ? '#000000' : '#888888' }]}>Home</Text>
             </TouchableOpacity>
 
             {/* Center Floating Button */}
             <View style={styles.fabContainer}>
-              <TouchableOpacity 
-                style={styles.fabWrapper} 
-                activeOpacity={0.9} 
-                onPress={() => setMenuVisible(true)} // Opens the modal
+              <TouchableOpacity
+                style={styles.fabWrapper}
+                activeOpacity={0.9}
+                onPress={() => setMenuVisible(true)}
               >
-                <LinearGradient 
-                  colors={['#BCAAA4', '#8D7B75']} 
+                <LinearGradient
+                  colors={['#BCAAA4', '#8D7B75']}
                   style={styles.fabGradient}
                 >
                   <Ionicons name="add" size={32} color="#FFFFFF" />
@@ -47,18 +102,18 @@ export default function TabsLayout() {
             </View>
 
             {/* Right Tab: Profile */}
-            <TouchableOpacity 
-              style={styles.tabItem} 
+            <TouchableOpacity
+              style={styles.tabItem}
               onPress={() => router.push('/profile')}
             >
-              <Ionicons 
-                name="person-outline" 
-                size={28} 
-                color={pathname === '/profile' ? '#000000' : '#888888'} 
+              <Ionicons
+                name="person-outline"
+                size={28}
+                color={pathname === '/profile' ? '#000000' : '#888888'}
               />
               <Text style={[styles.tabLabel, { color: pathname === '/profile' ? '#000000' : '#888888' }]}>Profile</Text>
             </TouchableOpacity>
-            
+
           </View>
         )}
       >
@@ -69,21 +124,19 @@ export default function TabsLayout() {
 
       {/* Popup Overlay Menu */}
       <Modal visible={isMenuVisible} transparent={true} animationType="fade">
-        {/* Tapping this dark background closes the menu */}
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
           onPress={() => setMenuVisible(false)}
         >
-          {/* Prevent touches inside the menu from closing the modal */}
           <TouchableOpacity activeOpacity={1} style={styles.menuContainer}>
-            
+
             {/* Acknowledge List Button */}
-            <TouchableOpacity 
-              style={styles.menuItem} 
+            <TouchableOpacity
+              style={styles.menuItem}
               onPress={() => {
                 setMenuVisible(false);
-                router.push('/acknowledge'); 
+                router.push('/acknowledge');
               }}
             >
               <View style={styles.iconCircle}>
@@ -93,11 +146,11 @@ export default function TabsLayout() {
             </TouchableOpacity>
 
             {/* Logs Button */}
-            <TouchableOpacity 
-              style={styles.menuItem} 
+            <TouchableOpacity
+              style={styles.menuItem}
               onPress={() => {
                 setMenuVisible(false);
-                router.push('/logs'); 
+                router.push('/logs');
               }}
             >
               <View style={styles.iconCircle}>
@@ -114,7 +167,6 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  // --- Tab Bar Styles ---
   tabBarContainer: {
     position: 'absolute',
     bottom: 0,
@@ -150,11 +202,11 @@ const styles = StyleSheet.create({
   },
   fabWrapper: {
     position: 'absolute',
-    bottom: 10, 
+    bottom: 10,
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#FFFFFF', // Creates the white ring effect
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 12,
@@ -170,18 +222,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // --- Modal Overlay Styles ---
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)', // Slightly dims the dashboard
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   menuContainer: {
-    backgroundColor: '#A69691', // Matches the muted card color
+    backgroundColor: '#A69691',
     borderRadius: 24,
     marginHorizontal: 20,
-    marginBottom: 100, // Hovers perfectly above the custom tab bar
+    marginBottom: 100,
     paddingVertical: 35,
     flexDirection: 'row',
     justifyContent: 'space-evenly',

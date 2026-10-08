@@ -1,45 +1,44 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../../firebaseConfig';
 
-export default function SplashScreen() {
+export default function Index() {
   const router = useRouter();
 
   useEffect(() => {
+    // Listens for existing token restored from AsyncStorage
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is already logged in: bypass login screen
+        router.replace('/(tabs)');
+      } else {
+        // No active session: go to login
+        router.replace('/login');
+      }
+    });
 
-    const timer = setTimeout(() => {
-      router.replace('/login'); 
-    }, 2500);
-
-
-    return () => clearTimeout(timer);
-  }, []);
+    return () => unsubscribe();
+  }, [router]);
 
   return (
-    <LinearGradient
-      colors={['#7B7070', '#614141']} 
-      style={styles.container}
-    >
-      <View style={styles.logoContainer}>
-        <MaterialCommunityIcons name="cctv" size={100} color="#FFFFFF" />
-        <Text style={styles.brandText}>GearCheck</Text>
-      </View>
-    </LinearGradient>
+    <View style={styles.container}>
+      <ActivityIndicator size="large" color="#7B7070" />
+    </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#18181b',
   },
   logoContainer: {
     alignItems: 'center',
 
-    marginBottom: 40, 
+    marginBottom: 40,
   },
   brandText: {
     fontSize: 40,
