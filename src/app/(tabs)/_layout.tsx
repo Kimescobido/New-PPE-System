@@ -6,6 +6,9 @@ import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../../firebaseConfig'; // Ensure this matches your firebase config path
+
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -53,10 +56,24 @@ export default function TabsLayout() {
           projectId ? { projectId } : undefined
         );
 
-        console.log("====================================");
-        console.log("YOUR EXPO PUSH TOKEN:");
-        console.log(tokenData.data);
-        console.log("====================================");
+        const pushToken = tokenData.data;
+        console.log("Registered Expo Push Token:", pushToken);
+
+        // Save the dynamic token to Firebase so the AI script can find it
+        if (pushToken) {
+          try {
+            await setDoc(doc(db, 'officer_tokens', pushToken), {
+              token: pushToken,
+              deviceModel: Device.modelName || 'Unknown Device',
+              platform: Platform.OS,
+              lastActive: serverTimestamp(),
+            });
+            console.log("Token successfully synced to Firestore!");
+          } catch (error) {
+            console.error("Error saving token to Firestore:", error);
+          }
+        }
+
       } else {
         console.log('Must use a physical device for Push Notifications');
       }
